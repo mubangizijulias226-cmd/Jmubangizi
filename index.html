@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UNSDCF Africa Regional Monitoring Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="data.js"></script>
+<style>
+:root{--p:#00457c;--s:#009edb;--l:#00b5e2;--g:#10b981;--a:#f59e0b;--r:#ef4444;--bg:#f0f4f8;--w:#fff;--t:#1a2332}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);margin:0;color:var(--t)}
+nav{position:sticky;top:0;z-index:99;background:var(--p);color:#fff;padding:10px;display:flex;gap:10px;flex-wrap:wrap}
+nav a{color:#fff;text-decoration:none;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.15)}
+.filters{position:sticky;top:52px;z-index:98;background:#fff;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;border-bottom:1px solid #ddd}
+section{padding:16px}
+.card,.kpi{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.kpi{border-left:6px solid var(--s)} .num{font-size:1.5rem;font-weight:700}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+table{width:100%;border-collapse:collapse;background:#fff}.sticky th{position:sticky;top:0;background:#eaf2f8}
+th,td{padding:8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#fafafa}th{cursor:pointer}
+.btn{background:var(--s);color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+@media print{nav,.filters,.btn{display:none}}
+</style>
+</head>
+<body>
+<nav>
+<a href="#s1">Portfolio</a><a href="#s2">CF Analysis</a><a href="#s3">RCO</a><a href="#s4">CCA</a><a href="#s5">Water</a><a href="#s6">Experts</a><a href="#s7">Results</a>
+<button class="btn" onclick="window.print()">Print / Export PDF</button>
+</nav>
+<div class="filters" id="filters"></div>
+<div id="app"></div>
+<script>
+const state={countries:[],subregions:[],cycle:[],agencies:[],pillars:[],sdg:[]};
+const ALL=DATA.countries.map(d=>d.country);
+function opts(values,multi=true){return `<select ${multi?'multiple':''}>${values.map(v=>`<option>${v}</option>`).join('')}</select>`}
+function renderFilters(){document.getElementById('filters').innerHTML=`
+<label>Country ${opts(ALL)}</label>
+<label>Sub-region ${opts(['Eastern Africa','Western Africa','Central Africa','Southern Africa','Northern Africa'])}</label>
+<label>CF Cycle ${opts([...new Set(DATA.countries.map(d=>d.cf_cycle))],false)}</label>
+<label>UN Agency ${opts([...new Set(DATA.portfolio.map(d=>d.agency_name))])}</label>
+<label>Pillar ${opts(['People','Planet','Prosperity','Peace','Partnership'])}</label>
+<label>SDG ${opts(Array.from({length:17},(_,i)=>i+1))}</label>
+<button class="btn" id="reset">Reset Filters</button>`;
+[...document.querySelectorAll('.filters select')].forEach((s,i)=>s.onchange=()=>{state[['countries','subregions','cycle','agencies','pillars','sdg'][i]]=[...s.selectedOptions].map(o=>o.value);render()});
+document.getElementById('reset').onclick=()=>{Object.keys(state).forEach(k=>state[k]=[]);renderFilters();render();};}
+function fCountry(c){return !state.countries.length||state.countries.includes(c)}
+function csvDownload(name,rows){const keys=Object.keys(rows[0]||{});const txt=[keys.join(','),...rows.map(r=>keys.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt]));a.download=name;a.click();}
+function section1(){const rows=DATA.portfolio.filter(r=>fCountry(r.country));
+const req=rows.reduce((a,b)=>a+b.required_resources,0),av=rows.reduce((a,b)=>a+b.available_resources,0),sp=rows.reduce((a,b)=>a+b.expenditure,0),ex=((sp/av||0)*100).toFixed(1);
+return `<section id=s1><h2>1. Portfolio Overview</h2><div class=kpis><div class=kpi><div class=num>${req}M</div>Required USD</div><div class=kpi><div class=num>${av}M</div>Available USD</div><div class=kpi><div class=num>${sp}M (${ex}%)</div>Expenditure</div></div><button class=btn onclick='csvDownload("portfolio.csv",filteredPortfolio)'>Download CSV</button><div class=card><table class=sticky><thead><tr><th>Country</th><th>Required</th><th>Available</th><th>Spent</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href=# onclick='countryModal("${r.country}")'>${r.country}</a></td><td>${r.required_resources}</td><td>${r.available_resources}</td><td>${r.expenditure}</td></tr>`).join('')}</tbody></table></div></section>`}
+function simpleTable(id,title,rows){return `<section id=${id}><h2>${title}</h2><button class=btn onclick='csvDownload("${id}.csv",window.${id}Rows)'>Download CSV</button><div class=card><table><thead><tr>${Object.keys(rows[0]||{}).map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${Object.values(r).map(v=>`<td>${Array.isArray(v)?v.join('; '):v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`}
+function countryModal(c){alert(`${c} summary\nPortfolio entries: `+DATA.portfolio.filter(x=>x.country===c).length)}
+function render(){window.filteredPortfolio=DATA.portfolio.filter(r=>fCountry(r.country));
+window.s2Rows=DATA.cfAnalysis.filter(r=>fCountry(r.country));window.s3Rows=DATA.rco.filter(r=>fCountry(r.country));window.s4Rows=DATA.cca.filter(r=>fCountry(r.country));window.s5Rows=DATA.water.filter(r=>fCountry(r.country));window.s6Rows=DATA.experts.filter(r=>fCountry(r.country));window.s7Rows=DATA.results.filter(r=>fCountry(r.country));
+app.innerHTML=section1()+simpleTable('s2','2. CF Analysis',s2Rows)+simpleTable('s3','3. RCO Composition',s3Rows)+simpleTable('s4','4. CCA Updates',s4Rows)+simpleTable('s5','5. Water Integration',s5Rows)+simpleTable('s6','6. Expert Locator',s6Rows)+simpleTable('s7','7. Results',s7Rows);
+}
+renderFilters();render();
+</script>
+</body>
+</html>
