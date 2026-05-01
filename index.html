@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>UNSDCF Africa Regional Monitoring Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="data.js"></script>
+<style>
+:root{--p:#00457c;--s:#009edb;--g:#10b981;--a:#f59e0b;--r:#ef4444;--bg:#f0f4f8;--w:#fff;--t:#1a2332}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);margin:0;color:var(--t)}
+nav{position:sticky;top:0;z-index:99;background:var(--p);color:#fff;padding:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+nav a{color:#fff;text-decoration:none;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.15)}
+.filters{position:sticky;top:54px;z-index:98;background:#fff;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;border-bottom:1px solid #ddd}
+section{padding:16px}.card,.kpi{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.kpi{border-left:6px solid var(--s)} .num{font-size:1.5rem;font-weight:700}
+table{width:100%;border-collapse:collapse;background:#fff}.sticky th{position:sticky;top:0;background:#eaf2f8}th,td{padding:8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#fafafa}
+.btn{background:var(--s);color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer}.warn{background:var(--a)}
+@media print{nav,.filters,.btn,#fileImport{display:none}}
+</style>
+</head>
+<body>
+<nav>
+<a href="#s1">Portfolio</a><a href="#s2">CF Analysis</a><a href="#s3">RCO</a><a href="#s4">CCA</a><a href="#s5">Water</a><a href="#s6">Experts</a><a href="#s7">Results</a>
+<input id="fileImport" type="file" accept=".json" />
+<button class="btn" onclick="downloadCurrentData()">Download Current Data CSV</button>
+<button class="btn" onclick="window.print()">Print / Export PDF</button>
+</nav>
+<div class="filters" id="filters"></div>
+<div id="app"></div>
+<script>
+let dataset = window.DATA;
+const state={countries:[]};
+function toOptions(values){return values.map(v=>`<option value="${v}">${v}</option>`).join('')}
+function renderFilters(){
+  const countries=[...new Set(dataset.countries.map(c=>c.country))];
+  document.getElementById('filters').innerHTML=`
+  <label><b>Country Filter</b><br/><select id="countryFilter" multiple>${toOptions(countries)}</select></label>
+  <button class="btn" id="reset">Reset Filters</button>
+  <small>Tip: Hold Ctrl/Cmd to select multiple countries.</small>`;
+  document.getElementById('countryFilter').onchange=(e)=>{state.countries=[...e.target.selectedOptions].map(o=>o.value);render();};
+  document.getElementById('reset').onclick=()=>{state.countries=[];renderFilters();render();};
+}
+function byCountry(row){return !state.countries.length||state.countries.includes(row.country)}
+function csvString(rows){if(!rows.length) return 'No data'; const keys=Object.keys(rows[0]); return [keys.join(','),...rows.map(r=>keys.map(k=>JSON.stringify(Array.isArray(r[k])?r[k].join('; '):r[k]??'')).join(','))].join('\n');}
+function downloadCSV(name,rows){const blob=new Blob([csvString(rows)],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+function downloadCurrentData(){
+  const merged=[...filtered.portfolio,...filtered.cfAnalysis,...filtered.rco,...filtered.cca,...filtered.water,...filtered.experts,...filtered.results];
+  downloadCSV('unsdcf_current_view.csv',merged);
+}
+function sec(title,id,rows){return `<section id="${id}"><h2>${title}</h2><button class="btn" onclick='downloadCSV("${id}.csv", filtered["${id}"])'>Download CSV</button><div class="card"><table><thead><tr>${Object.keys(rows[0]||{empty:''}).map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${Object.values(r).map(v=>`<td>${Array.isArray(v)?v.join('; '):v}</td>`).join('')}</tr>`).join(''):'<tr><td>No records</td></tr>'}</tbody></table></div></section>`}
+function portfolio(){const rows=filtered.portfolio;const req=rows.reduce((a,b)=>a+b.required_resources,0),av=rows.reduce((a,b)=>a+b.available_resources,0),sp=rows.reduce((a,b)=>a+b.expenditure,0);const rate=av?((sp/av)*100).toFixed(1):0;
+  return `<section id="s1"><h2>1. Portfolio Overview</h2><div class="kpis"><div class="kpi"><div class="num">${req}M</div>Total Required</div><div class="kpi"><div class="num">${av}M</div>Total Available</div><div class="kpi"><div class="num">${sp}M (${rate}%)</div>Total Expenditure</div></div><button class="btn" onclick='downloadCSV("portfolio.csv", filtered.portfolio)'>Download CSV</button><div class="card"><table class="sticky"><thead><tr><th>Country</th><th>Required</th><th>Available</th><th>Spent</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href="#" onclick='alert("${r.country} selected")'>${r.country}</a></td><td>${r.required_resources}</td><td>${r.available_resources}</td><td>${r.expenditure}</td></tr>`).join('')}</tbody></table></div></section>`;
+}
+const filtered={};
+function render(){
+  filtered.portfolio=dataset.portfolio.filter(byCountry);
+  filtered.cfAnalysis=dataset.cfAnalysis.filter(byCountry);
+  filtered.rco=dataset.rco.filter(byCountry);
+  filtered.cca=dataset.cca.filter(byCountry);
+  filtered.water=dataset.water.filter(byCountry);
+  filtered.experts=dataset.experts.filter(byCountry);
+  filtered.results=dataset.results.filter(byCountry);
+  app.innerHTML=portfolio()+sec('2. CF Analysis','cfAnalysis',filtered.cfAnalysis)+sec('3. RCO Composition','rco',filtered.rco)+sec('4. CCA Updates','cca',filtered.cca)+sec('5. Water Integration','water',filtered.water)+sec('6. Expert Locator','experts',filtered.experts)+sec('7. Results','results',filtered.results);
+}
+
+// Import JSON dataset with the same schema as data.js (window.DATA object)
+document.getElementById('fileImport').addEventListener('change', async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const text=await f.text(); const incoming=JSON.parse(text); dataset=incoming; state.countries=[]; renderFilters(); render(); alert('Dataset imported and dashboard updated.'); }
+  catch(err){ alert('Invalid JSON file. Please import a valid dataset.'); }
+});
+renderFilters(); render();
+</script>
+</body>
+</html>
