@@ -3,127 +3,73 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Monitoring Dashboard</title>
+    <title>Regional Monitoring Tool</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-      body { margin:0; font-family: Arial, sans-serif; background:#f6f8fb; }
-      .app { display:flex; min-height:100vh; }
-      .sidebar { width:280px; padding:16px; background:#1f2937; color:white; }
-      .main { flex:1; padding:20px; }
-      .card-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap:12px; }
-      .card { background:white; border-radius:8px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
-      select, input, button { width:100%; margin:6px 0 12px; padding:8px; }
-      .charts { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
-      canvas { background:white; border-radius:8px; padding:8px; }
+      body{margin:0;font-family:Arial;background:#f5f7fb}.app{display:flex;min-height:100vh}.sidebar{width:320px;background:#0f172a;color:#fff;padding:14px;overflow:auto}.main{flex:1;padding:20px}.card{background:#fff;border-radius:8px;padding:12px;margin-bottom:10px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}select,button{width:100%;margin:6px 0;padding:8px}.table-wrap{max-height:60vh;overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
     </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body><div id="root"></div>
     <script type="text/babel">
-      const {useEffect, useMemo, useRef, useState} = React;
-
+      const {useEffect, useState} = React;
       const api = (path) => fetch(path).then(r => r.json());
-
-      function MultiSelect({label, options, value, onChange}) {
-        return <div><label>{label}</label><select multiple value={value} onChange={(e)=>onChange([...e.target.selectedOptions].map(o=>o.value))}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
-      }
+      const Multi = ({label, options, value, onChange}) => <div><label>{label}</label><select multiple value={value} onChange={e=>onChange([...e.target.selectedOptions].map(o=>o.value))}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
 
       function App(){
-        const [filtersMeta, setFiltersMeta] = useState({regions:[], years:[], metrics:[]});
-        const [countries, setCountries] = useState([]);
-        const [filters, setFilters] = useState(()=>JSON.parse(localStorage.getItem('filters')||'{"region":[],"country":[],"year":[],"metric":""}'));
-        const [summary, setSummary] = useState({count:0, total:0, avg:0});
-        const [lineData, setLineData] = useState([]);
-        const [barData, setBarData] = useState([]);
-        const [latestUpload, setLatestUpload] = useState(null);
+        const [meta, setMeta] = useState({countries:[], plans:[], years:[], metrics:[], attribute_filters:{}});
+        const [filters, setFilters] = useState({country:[], plan_name:[], year:[], metric:'', dynamic:{}});
+        const [data, setData] = useState([]);
 
-        const lineRef = useRef(null); const barRef = useRef(null);
-        const lineChart = useRef(null); const barChart = useRef(null);
+        const loadMeta = async()=>{
+          const m = await api('/api/filters');
+          setMeta(m);
+          if (!filters.metric && m.metrics.length) setFilters(f=>({...f, metric:m.metrics[0]}));
+        }
 
-        const loadMeta = async ()=>{
-          const f = await api('/api/filters');
-          setFiltersMeta(f); setLatestUpload(f.latest_upload);
-          if (!filters.metric && f.metrics.length) setFilters(prev=>({...prev, metric:f.metrics[0]}));
-        };
-
-        const loadCountries = async ()=>{
-          const p = new URLSearchParams(); filters.region.forEach(r=>p.append('region',r));
-          const res = await api('/api/countries?'+p.toString()); setCountries(res.countries);
-        };
-
-        const loadData = async ()=>{
-          if (!filters.metric) return;
+        const loadData = async()=>{
           const p = new URLSearchParams();
-          filters.region.forEach(v=>p.append('region',v));
-          filters.country.forEach(v=>p.append('country',v));
-          filters.year.forEach(v=>p.append('year',v));
-          p.append('metric', filters.metric);
+          filters.country.forEach(v=>p.append('country', v));
+          filters.plan_name.forEach(v=>p.append('plan_name', v));
+          filters.year.forEach(v=>p.append('year', v));
+          Object.entries(filters.dynamic).forEach(([k,arr])=>arr.forEach(v=>{p.append('attribute_key',k);p.append('attribute_value',v)}));
+          if (filters.metric) p.append('metric', filters.metric);
+          const res = await api('/api/data?'+p.toString());
+          setData(res.rows);
+        }
 
-          const raw = await api('/api/data?'+p.toString());
-          const values = raw.rows.map(r=>Number(r[filters.metric])).filter(v=>!isNaN(v));
-          const total = values.reduce((a,b)=>a+b,0);
-          setSummary({count:raw.count, total, avg: values.length?total/values.length:0});
+        useEffect(()=>{loadMeta()},[]);
+        useEffect(()=>{loadData()},[filters]);
 
-          const ly = await api('/api/aggregate?group_by=year&agg=sum&metric='+filters.metric+'&'+p.toString());
-          const bc = await api('/api/aggregate?group_by=country&agg=sum&metric='+filters.metric+'&'+p.toString());
-          setLineData(ly.results); setBarData(bc.results.slice(0,15));
-        };
+        const numeric = data.map(r=>Number(r[filters.metric])).filter(v=>!isNaN(v));
+        const total = numeric.reduce((a,b)=>a+b,0);
 
-        useEffect(()=>{ loadMeta(); },[]);
-        useEffect(()=>{ localStorage.setItem('filters', JSON.stringify(filters)); loadCountries(); loadData(); }, [filters]);
-        useEffect(()=>{
-          const poll = setInterval(loadMeta, 10000);
-          return ()=>clearInterval(poll);
-        },[]);
-
-        useEffect(()=>{
-          if (!lineRef.current) return;
-          lineChart.current?.destroy();
-          lineChart.current = new Chart(lineRef.current, {type:'line', data:{labels:lineData.map(d=>d.year), datasets:[{label:filters.metric, data:lineData.map(d=>d.value), borderColor:'#2563eb'}]}});
-        }, [lineData, filters.metric]);
-
-        useEffect(()=>{
-          if (!barRef.current) return;
-          barChart.current?.destroy();
-          barChart.current = new Chart(barRef.current, {type:'bar', data:{labels:barData.map(d=>d.country), datasets:[{label:filters.metric, data:barData.map(d=>d.value), backgroundColor:'#16a34a'}]}});
-        }, [barData, filters.metric]);
-
-        const exportCsv = ()=>{
-          const p = new URLSearchParams();
-          filters.region.forEach(v=>p.append('region',v)); filters.country.forEach(v=>p.append('country',v)); filters.year.forEach(v=>p.append('year',v));
-          window.open('/api/export?'+p.toString(), '_blank');
-        };
-
-        return <div className="app">
-          <aside className="sidebar">
-            <h2>Filters</h2>
-            <MultiSelect label="Region" options={filtersMeta.regions} value={filters.region} onChange={(v)=>setFilters({...filters, region:v, country:[]})} />
-            <MultiSelect label="Country" options={countries} value={filters.country} onChange={(v)=>setFilters({...filters, country:v})} />
-            <MultiSelect label="Year" options={filtersMeta.years.map(String)} value={filters.year.map(String)} onChange={(v)=>setFilters({...filters, year:v.map(Number)})} />
+        return <div className='app'>
+          <aside className='sidebar'>
+            <h2>Regional Monitoring</h2>
+            <Multi label='Country' options={meta.countries} value={filters.country} onChange={v=>setFilters({...filters, country:v})}/>
+            <Multi label='Plan Name' options={meta.plans} value={filters.plan_name} onChange={v=>setFilters({...filters, plan_name:v})}/>
+            <Multi label='Year' options={meta.years.map(String)} value={filters.year.map(String)} onChange={v=>setFilters({...filters, year:v.map(Number)})}/>
             <label>Metric</label>
-            <select value={filters.metric||''} onChange={(e)=>setFilters({...filters, metric:e.target.value})}>{filtersMeta.metrics.map(m=><option key={m} value={m}>{m}</option>)}</select>
-            <button onClick={exportCsv}>Export Filtered CSV</button>
-            <small>Latest upload: {latestUpload || 'N/A'}</small>
+            <select value={filters.metric} onChange={e=>setFilters({...filters, metric:e.target.value})}>{meta.metrics.map(m=><option key={m} value={m}>{m}</option>)}</select>
+            {Object.entries(meta.attribute_filters).slice(0,8).map(([k,opts])=><Multi key={k} label={k} options={opts} value={filters.dynamic[k]||[]} onChange={v=>setFilters({...filters, dynamic:{...filters.dynamic,[k]:v}})} />)}
+            <button onClick={()=>window.open('/api/export','_blank')}>Export CSV</button>
           </aside>
-          <main className="main">
-            <h1>Monitoring Dashboard</h1>
-            <div className="card-grid">
-              <div className="card"><h3>Rows</h3><p>{summary.count}</p></div>
-              <div className="card"><h3>Total ({filters.metric})</h3><p>{summary.total.toFixed(2)}</p></div>
-              <div className="card"><h3>Average ({filters.metric})</h3><p>{summary.avg.toFixed(2)}</p></div>
+          <main className='main'>
+            <h1>What is happening in the region</h1>
+            <div className='kpis'>
+              <div className='card'><b>Records</b><div>{data.length}</div></div>
+              <div className='card'><b>Total ({filters.metric})</b><div>{total.toFixed(2)}</div></div>
+              <div className='card'><b>Average ({filters.metric})</b><div>{numeric.length ? (total/numeric.length).toFixed(2):'0.00'}</div></div>
             </div>
-            <div className="charts">
-              <canvas ref={lineRef} height="250"></canvas>
-              <canvas ref={barRef} height="250"></canvas>
+            <div className='card table-wrap'>
+              <table><thead><tr>{Object.keys(data[0]||{}).map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{data.slice(0,300).map((r,i)=><tr key={i}>{Object.entries(r).map(([k,v])=><td key={k}>{String(v??'')}</td>)}</tr>)}</tbody></table>
             </div>
           </main>
         </div>
       }
-
-      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+      ReactDOM.createRoot(document.getElementById('root')).render(<App />)
     </script>
   </body>
 </html>
