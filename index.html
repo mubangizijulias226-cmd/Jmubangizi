@@ -1,62 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>UNSDCF Africa Regional Monitoring Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="data.js"></script>
-<style>
-:root{--p:#00457c;--s:#009edb;--l:#00b5e2;--g:#10b981;--a:#f59e0b;--r:#ef4444;--bg:#f0f4f8;--w:#fff;--t:#1a2332}
-body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);margin:0;color:var(--t)}
-nav{position:sticky;top:0;z-index:99;background:var(--p);color:#fff;padding:10px;display:flex;gap:10px;flex-wrap:wrap}
-nav a{color:#fff;text-decoration:none;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.15)}
-.filters{position:sticky;top:52px;z-index:98;background:#fff;padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;border-bottom:1px solid #ddd}
-section{padding:16px}
-.card,.kpi{background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.07);padding:12px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.kpi{border-left:6px solid var(--s)} .num{font-size:1.5rem;font-weight:700}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-table{width:100%;border-collapse:collapse;background:#fff}.sticky th{position:sticky;top:0;background:#eaf2f8}
-th,td{padding:8px;border-bottom:1px solid #eee}tr:nth-child(even){background:#fafafa}th{cursor:pointer}
-.btn{background:var(--s);color:#fff;border:none;padding:8px 10px;border-radius:6px;cursor:pointer}
-@media(max-width:900px){.grid2{grid-template-columns:1fr}}
-@media print{nav,.filters,.btn{display:none}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jojo's Reading Magic — Primary 2 English Reading Coach</title>
+  <style>
+    :root {
+      --pink:#ffd1e8;--lav:#d9c8ff;--yellow:#fff5bf;--card:#fff7ff;--text:#4a2a5c;
+      --green:#64d88a;--orange:#ffb86b;--blue:#6bc5ff;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Baloo 2","Comic Sans MS",cursive;background:linear-gradient(135deg,var(--pink),var(--lav),var(--yellow));min-height:100vh;color:var(--text);overflow-x:hidden}
+    .stars,.sparkles{position:fixed;inset:0;pointer-events:none;z-index:0}
+    .star,.sparkle{position:absolute;opacity:.7;animation:float 7s infinite ease-in-out}
+    .sparkle{animation-duration:4s}
+    @keyframes float{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-18px) scale(1.15)}}
+    .app{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:14px}
+    .title{font-size:clamp(34px,6vw,56px);text-align:center;font-weight:800;color:#fff;text-shadow:0 0 10px #ff7cc8,0 0 18px #fff;animation:glow 2s infinite alternate}
+    @keyframes glow{from{filter:drop-shadow(0 0 4px #fff)}to{filter:drop-shadow(0 0 12px #fff39f)}}
+    .progressWrap{background:#ffffff99;border-radius:30px;padding:10px 14px;margin:10px 0;box-shadow:0 8px 18px #00000018}
+    .starbar{height:14px;background:#fff;border-radius:99px;overflow:hidden}
+    .fill{height:100%;width:0;background:linear-gradient(90deg,#ffe45e,#ffc14d,#ff9af2);transition:width .5s}
+    .count{text-align:center;font-size:22px;font-weight:700;margin-top:8px}
+    .home,.mode{display:none}
+    .active{display:block;animation:pop .4s ease}
+    @keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+    .card,.panel{background:var(--card);border-radius:24px;padding:18px;box-shadow:0 12px 24px #00000022;margin-bottom:14px}
+    .word{font-size:clamp(42px,8vw,72px);font-weight:800}
+    .emoji{font-size:68px;margin-bottom:14px}
+    .msg{font-size:30px;min-height:45px}
+    .cheer{display:flex;justify-content:center;gap:16px;font-size:42px;margin:10px 0}
+    .controls,.modes,.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+    button,input,select{font-family:inherit}
+    .btn{font-size:18px;border:none;border-radius:999px;padding:12px 20px;color:white;cursor:pointer;box-shadow:0 6px 10px #00000033;transition:transform .2s}
+    .btn:active{transform:scale(.96)}
+    .pink{background:#ff6fb5}.green{background:#4ccf73}.blue{background:#4cb5ff}.purple{background:#a676ff}.orange{background:#ffb24d}
+    .ghost{background:#dce6ff;color:#16366a}
+    .ok{background:#2eb872}.warn{background:#f4a259}
+    .big{font-size:22px;padding:14px 24px}
+    .input{width:100%;max-width:400px;font-size:28px;padding:10px 16px;border-radius:16px;border:3px solid #ffc9ef;text-align:center}
+    .settings{position:fixed;right:10px;bottom:10px;opacity:.55}
+    .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:20px;background:#00000066;z-index:5}
+    .overlay.show{display:flex}
+    .cele{background:#fff;border-radius:24px;padding:24px;text-align:center;max-width:760px;width:100%;box-shadow:0 18px 30px #00000055}
+    .gold{background:linear-gradient(120deg,#fff0a4,#ffd15c,#ffefb0)}
+    .rainbow{background:linear-gradient(120deg,#ffb3d5,#ffd66b,#afffd0,#acccff,#efb3ff)}
+    .subtitle,.small,.note{font-size:16px}
+    .sentence{font-size:22px;line-height:1.4;margin:12px 0}
+    .grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+  </style>
 </head>
 <body>
-<nav>
-<a href="#s1">Portfolio</a><a href="#s2">CF Analysis</a><a href="#s3">RCO</a><a href="#s4">CCA</a><a href="#s5">Water</a><a href="#s6">Experts</a><a href="#s7">Results</a>
-<button class="btn" onclick="window.print()">Print / Export PDF</button>
-</nav>
-<div class="filters" id="filters"></div>
-<div id="app"></div>
+  <div class="stars" id="stars"></div><div class="sparkles" id="sparkles"></div>
+  <div class="app">
+    <div class="title">✨ Jojo's Reading Magic ✨</div>
+    <div class="progressWrap"><div class="starbar"><div class="fill" id="starFill"></div></div><div class="count" id="count">⭐ 0 / 50 words</div></div>
+
+    <h1>📚 Primary 2 English Reading Coach</h1>
+    <p class="subtitle">A simple, fun app to help children read, spell, and understand English confidently.</p>
+
+    <section class="home active" id="home">
+      <div class="card">
+        <p style="font-size:36px;margin:8px 0">Hello Jojo! 🌸 Let's learn to read today!</p>
+        <div class="cheer"><span>👦 Jayden</span><span>👦 Jadon</span><span>👧 Janyo</span></div>
+        <div class="modes">
+          <button class="btn blue big" onclick="startMode('read')">👂 Listen & Read</button>
+          <button class="btn pink big" onclick="startMode('say')">🎤 Say the Word</button>
+          <button class="btn purple big" onclick="startMode('write')">✏️ Write the Word</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="mode" id="mode">
+      <div class="panel row">
+        <label><strong>Level:</strong>
+          <select id="levelSelect"><option value="easy">Easy words</option><option value="medium">Primary 2 words</option><option value="sentence">Sentences</option></select>
+        </label>
+        <button class="btn ghost" onclick="newRound()">🔄 New Round</button>
+        <button class="btn" onclick="speakPrompt()">🔊 Listen (Slow Female Voice)</button>
+        <button class="btn orange" onclick="goHome()">🏠 Home</button>
+      </div>
+
+      <div class="card" id="flashcard">
+        <div id="emoji" class="emoji">🌟</div>
+        <div class="word" id="promptText">cat</div>
+        <div id="phonics">/k/ /a/ /t/</div>
+        <p id="instruction">Type the word you hear and see.</p>
+        <input id="answerInput" class="input" autocomplete="off" placeholder="Type here"/>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ok" onclick="checkAnswer()">✅ Check</button>
+          <button class="btn warn" onclick="showHint()">💡 Hint</button>
+          <button class="btn" onclick="skipItem()">⏭ Skip</button>
+        </div>
+        <p id="feedback" class="sentence"></p>
+      </div>
+    </section>
+
+    <div class="panel">
+      <h3 style="margin:0 0 8px">Parent Tips</h3>
+      <div class="grid small">
+        <div>• Practice 10 minutes daily.</div><div>• Let your child read aloud first.</div><div>• Praise effort, not just correct answers.</div><div>• Repeat missed words at the end.</div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn settings" onclick="resetProgress()">⚙️ Reset Progress</button>
+  <div class="overlay" id="overlay"><div class="cele" id="celeBox"></div></div>
+
 <script>
-const state={countries:[],subregions:[],cycle:[],agencies:[],pillars:[],sdg:[]};
-const ALL=DATA.countries.map(d=>d.country);
-function opts(values,multi=true){return `<select ${multi?'multiple':''}>${values.map(v=>`<option>${v}</option>`).join('')}</select>`}
-function renderFilters(){document.getElementById('filters').innerHTML=`
-<label>Country ${opts(ALL)}</label>
-<label>Sub-region ${opts(['Eastern Africa','Western Africa','Central Africa','Southern Africa','Northern Africa'])}</label>
-<label>CF Cycle ${opts([...new Set(DATA.countries.map(d=>d.cf_cycle))],false)}</label>
-<label>UN Agency ${opts([...new Set(DATA.portfolio.map(d=>d.agency_name))])}</label>
-<label>Pillar ${opts(['People','Planet','Prosperity','Peace','Partnership'])}</label>
-<label>SDG ${opts(Array.from({length:17},(_,i)=>i+1))}</label>
-<button class="btn" id="reset">Reset Filters</button>`;
-[...document.querySelectorAll('.filters select')].forEach((s,i)=>s.onchange=()=>{state[['countries','subregions','cycle','agencies','pillars','sdg'][i]]=[...s.selectedOptions].map(o=>o.value);render()});
-document.getElementById('reset').onclick=()=>{Object.keys(state).forEach(k=>state[k]=[]);renderFilters();render();};}
-function fCountry(c){return !state.countries.length||state.countries.includes(c)}
-function csvDownload(name,rows){const keys=Object.keys(rows[0]||{});const txt=[keys.join(','),...rows.map(r=>keys.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt]));a.download=name;a.click();}
-function section1(){const rows=DATA.portfolio.filter(r=>fCountry(r.country));
-const req=rows.reduce((a,b)=>a+b.required_resources,0),av=rows.reduce((a,b)=>a+b.available_resources,0),sp=rows.reduce((a,b)=>a+b.expenditure,0),ex=((sp/av||0)*100).toFixed(1);
-return `<section id=s1><h2>1. Portfolio Overview</h2><div class=kpis><div class=kpi><div class=num>${req}M</div>Required USD</div><div class=kpi><div class=num>${av}M</div>Available USD</div><div class=kpi><div class=num>${sp}M (${ex}%)</div>Expenditure</div></div><button class=btn onclick='csvDownload("portfolio.csv",filteredPortfolio)'>Download CSV</button><div class=card><table class=sticky><thead><tr><th>Country</th><th>Required</th><th>Available</th><th>Spent</th></tr></thead><tbody>${rows.map(r=>`<tr><td><a href=# onclick='countryModal("${r.country}")'>${r.country}</a></td><td>${r.required_resources}</td><td>${r.available_resources}</td><td>${r.expenditure}</td></tr>`).join('')}</tbody></table></div></section>`}
-function simpleTable(id,title,rows){return `<section id=${id}><h2>${title}</h2><button class=btn onclick='csvDownload("${id}.csv",window.${id}Rows)'>Download CSV</button><div class=card><table><thead><tr>${Object.keys(rows[0]||{}).map(k=>`<th>${k}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${Object.values(r).map(v=>`<td>${Array.isArray(v)?v.join('; '):v}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`}
-function countryModal(c){alert(`${c} summary\nPortfolio entries: `+DATA.portfolio.filter(x=>x.country===c).length)}
-function render(){window.filteredPortfolio=DATA.portfolio.filter(r=>fCountry(r.country));
-window.s2Rows=DATA.cfAnalysis.filter(r=>fCountry(r.country));window.s3Rows=DATA.rco.filter(r=>fCountry(r.country));window.s4Rows=DATA.cca.filter(r=>fCountry(r.country));window.s5Rows=DATA.water.filter(r=>fCountry(r.country));window.s6Rows=DATA.experts.filter(r=>fCountry(r.country));window.s7Rows=DATA.results.filter(r=>fCountry(r.country));
-app.innerHTML=section1()+simpleTable('s2','2. CF Analysis',s2Rows)+simpleTable('s3','3. RCO Composition',s3Rows)+simpleTable('s4','4. CCA Updates',s4Rows)+simpleTable('s5','5. Water Integration',s5Rows)+simpleTable('s6','6. Expert Locator',s6Rows)+simpleTable('s7','7. Results',s7Rows);
-}
-renderFilters();render();
+const bank={easy:[{t:'cat',p:'/k/ /a/ /t/',e:'🐱'},{t:'sun',p:'/s/ /u/ /n/',e:'☀️'}],medium:[{t:'because',p:'be-cause',e:'🤔'},{t:'school',p:'sch-oo-l',e:'🏫'}],sentence:[{t:'I can read this story.',p:'Read each word clearly.',e:'📚'},{t:'My friend helps me learn.',p:'Look for the word friend.',e:'🫶'}]};
+let round=[],index=0,correct=0,total=10,stars=+localStorage.getItem('jojoStars')||0;
+const $=id=>document.getElementById(id);
+const cheers=["You can do it, Jojo! 💪","Wow, you are doing amazing! ⭐"];
+function drawBG(){for(let i=0;i<20;i++){let s=document.createElement('div');s.className='star';s.textContent='⭐';s.style.left=Math.random()*100+'%';s.style.top=Math.random()*100+'%';$('stars').appendChild(s)}}
+function setProgress(){ $('starFill').style.width=Math.min(stars,50)/50*100+'%'; $('count').textContent=`⭐ ${stars} / 50 words`; localStorage.setItem('jojoStars',stars); }
+function shuffle(a){return a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);}
+function current(){return round[index];}
+function render(){const item=current();if(!item){finish();return;} $('promptText').textContent=item.t; $('phonics').textContent=item.p; $('emoji').textContent=item.e; $('answerInput').value=''; $('feedback').textContent=''; $('instruction').textContent=$('levelSelect').value==='sentence'?'Type the sentence exactly.':'Type the word you hear and see.';}
+function pickFemaleVoice(){const voices=speechSynthesis.getVoices();return voices.find(v=>/en-US|en-GB/i.test(v.lang))||null;}
+function speakPrompt(){const item=current();if(!item)return;const u=new SpeechSynthesisUtterance(item.t);u.lang='en-US';u.rate=0.6;u.pitch=1.05;const voice=pickFemaleVoice();if(voice)u.voice=voice;speechSynthesis.cancel();speechSynthesis.speak(u)}
+function showHint(){const item=current();$('feedback').textContent=`Hint: ${item.p}`;}
+function checkAnswer(){const item=current();if(!item)return;const ans=$('answerInput').value.trim();if(ans.toLowerCase()===item.t.toLowerCase()){correct++;stars++;setProgress();$('feedback').textContent='Great job! ✅';}else{$('feedback').textContent=`Not quite. Correct answer: ${item.t}`;}index++;setTimeout(render,600)}
+function skipItem(){index++;render();}
+function finish(){ $('promptText').textContent='Round complete! 🎉'; $('phonics').textContent=''; $('emoji').textContent='🏁'; $('instruction').textContent=`Final score: ${correct}/${total}.`; $('feedback').textContent=correct>=7?'Excellent progress!':'Good effort! Repeat and try again.'; }
+function newRound(){const lvl=$('levelSelect').value;const source=bank[lvl];const items=[];while(items.length<total)items.push(source[items.length%source.length]);round=shuffle(items);index=0;correct=0;render();}
+function startMode(){ $('home').classList.remove('active'); $('mode').classList.add('active'); newRound(); }
+function goHome(){ $('mode').classList.remove('active'); $('home').classList.add('active'); }
+function resetProgress(){stars=0;setProgress();}
+$('levelSelect').addEventListener('change',newRound);$('answerInput').addEventListener('keydown',e=>{if(e.key==='Enter')checkAnswer()});
+setProgress();drawBG();
 </script>
 </body>
 </html>
