@@ -3,73 +3,121 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Regional Monitoring Tool</title>
+    <title>UN INFO Monitoring Tool</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-      body{margin:0;font-family:Arial;background:#f5f7fb}.app{display:flex;min-height:100vh}.sidebar{width:320px;background:#0f172a;color:#fff;padding:14px;overflow:auto}.main{flex:1;padding:20px}.card{background:#fff;border-radius:8px;padding:12px;margin-bottom:10px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}select,button{width:100%;margin:6px 0;padding:8px}.table-wrap{max-height:60vh;overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
+      :root{--brand:#083b7a;--sky:#0ba5df;--bg:#eef3fa;--card:#fff;--text:#2e3748}
+      *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+      .topbar{background:var(--brand);color:#fff;padding:16px 26px;font-size:28px;font-weight:700;letter-spacing:.3px}
+      .subbar{padding:18px 26px;background:#f9fbff;border-bottom:4px solid #dce6f7;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+      .tag{background:#eef4ff;border:1px solid #d8e4fb;padding:10px 14px;border-radius:999px;color:#5c6982}
+      .btn{background:var(--sky);color:#fff;border:none;border-radius:999px;padding:10px 18px;font-weight:700;cursor:pointer}
+      .wrap{padding:20px 26px 28px}
+      .tabs{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+      .tab{background:#dde6f5;padding:12px 18px;border-radius:12px;border:none;font-size:16px;color:#4c5b77;cursor:pointer}
+      .tab.active{background:#fff;border:1px solid #bfd5f7;color:#0d64b3;font-weight:700}
+      .panel,.table-card{background:var(--card);border-radius:18px;padding:18px;box-shadow:0 4px 18px rgba(9,45,93,.08)}
+      .filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;align-items:end}
+      label{font-size:12px;font-weight:700;color:#76829b;text-transform:uppercase;letter-spacing:.05em}
+      select,input{width:100%;padding:10px;border:1px solid #d5deee;border-radius:10px;background:#fff}
+      .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:14px 0}
+      .kpi{background:#f7faff;border:1px solid #d8e5fd;padding:14px;border-radius:12px}
+      .kpi .num{font-size:26px;font-weight:800;color:#204a86}
+      table{width:100%;border-collapse:collapse;font-size:14px}.table-wrap{max-height:54vh;overflow:auto}
+      th,td{padding:10px;border-bottom:1px solid #edf1f8;text-align:left;white-space:nowrap}
+      th{position:sticky;top:0;background:#f8fbff}
+      .upload-box{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .footer{padding:14px 26px;color:#6f7e98;text-align:center}
     </style>
   </head>
-  <body><div id="root"></div>
+  <body>
+    <div id="root"></div>
     <script type="text/babel">
-      const {useEffect, useState} = React;
-      const api = (path) => fetch(path).then(r => r.json());
-      const Multi = ({label, options, value, onChange}) => <div><label>{label}</label><select multiple value={value} onChange={e=>onChange([...e.target.selectedOptions].map(o=>o.value))}>{options.map(o=><option key={o} value={o}>{o}</option>)}</select></div>
+      const { useEffect, useMemo, useState } = React;
+      const api = async (path, options) => {
+        const res = await fetch(path, options);
+        if (!res.ok) throw new Error(await res.text());
+        return res.headers.get('content-type')?.includes('application/json') ? res.json() : res;
+      };
 
       function App(){
-        const [meta, setMeta] = useState({countries:[], plans:[], years:[], metrics:[], attribute_filters:{}});
-        const [filters, setFilters] = useState({country:[], plan_name:[], year:[], metric:'', dynamic:{}});
-        const [data, setData] = useState([]);
+        const [meta,setMeta]=useState({countries:[],plans:[],years:[],metrics:[],attribute_filters:{},latest_upload:null});
+        const [rows,setRows]=useState([]);
+        const [busy,setBusy]=useState(false);
+        const [activeTab,setActiveTab]=useState('focal');
+        const [uploadMode,setUploadMode]=useState('replace');
+        const [file,setFile]=useState(null);
+        const [filters,setFilters]=useState({country:'',plan_name:'',year:'',status:'',metric:''});
 
-        const loadMeta = async()=>{
-          const m = await api('/api/filters');
-          setMeta(m);
-          if (!filters.metric && m.metrics.length) setFilters(f=>({...f, metric:m.metrics[0]}));
-        }
+        const statusField = useMemo(()=>Object.keys(meta.attribute_filters).find(k=>k.includes('status')),[meta]);
+        const focalField = useMemo(()=>Object.keys(meta.attribute_filters).find(k=>k.includes('focal')),[meta]);
 
+        const loadMeta = async()=>{ const m=await api('/api/filters'); setMeta(m); if(!filters.metric && m.metrics[0]) setFilters(f=>({...f,metric:m.metrics[0]})); };
         const loadData = async()=>{
-          const p = new URLSearchParams();
-          filters.country.forEach(v=>p.append('country', v));
-          filters.plan_name.forEach(v=>p.append('plan_name', v));
-          filters.year.forEach(v=>p.append('year', v));
-          Object.entries(filters.dynamic).forEach(([k,arr])=>arr.forEach(v=>{p.append('attribute_key',k);p.append('attribute_value',v)}));
-          if (filters.metric) p.append('metric', filters.metric);
-          const res = await api('/api/data?'+p.toString());
-          setData(res.rows);
-        }
-
+          const p=new URLSearchParams(); if(filters.country) p.append('country',filters.country); if(filters.plan_name) p.append('plan_name',filters.plan_name); if(filters.year) p.append('year',filters.year);
+          if(statusField && filters.status){p.append('attribute_key',statusField);p.append('attribute_value',filters.status)}
+          if(focalField && activeTab==='focal' && filters.plan_name){p.append('attribute_key',focalField);p.append('attribute_value',filters.plan_name)}
+          if(filters.metric) p.append('metric',filters.metric);
+          const d=await api('/api/data?'+p.toString()); setRows(d.rows);
+        };
         useEffect(()=>{loadMeta()},[]);
-        useEffect(()=>{loadData()},[filters]);
+        useEffect(()=>{loadData()},[filters,activeTab,statusField,focalField]);
 
-        const numeric = data.map(r=>Number(r[filters.metric])).filter(v=>!isNaN(v));
-        const total = numeric.reduce((a,b)=>a+b,0);
+        const uploadFile = async()=>{
+          if(!file) return alert('Choose a file first.');
+          const fd=new FormData(); fd.append('file',file);
+          setBusy(true);
+          try{await api('/api/upload?mode='+uploadMode,{method:'POST',body:fd}); await loadMeta(); await loadData(); alert('Upload successful');}
+          catch(e){alert('Upload failed: '+e.message)}
+          finally{setBusy(false)}
+        };
 
-        return <div className='app'>
-          <aside className='sidebar'>
-            <h2>Regional Monitoring</h2>
-            <Multi label='Country' options={meta.countries} value={filters.country} onChange={v=>setFilters({...filters, country:v})}/>
-            <Multi label='Plan Name' options={meta.plans} value={filters.plan_name} onChange={v=>setFilters({...filters, plan_name:v})}/>
-            <Multi label='Year' options={meta.years.map(String)} value={filters.year.map(String)} onChange={v=>setFilters({...filters, year:v.map(Number)})}/>
-            <label>Metric</label>
-            <select value={filters.metric} onChange={e=>setFilters({...filters, metric:e.target.value})}>{meta.metrics.map(m=><option key={m} value={m}>{m}</option>)}</select>
-            {Object.entries(meta.attribute_filters).slice(0,8).map(([k,opts])=><Multi key={k} label={k} options={opts} value={filters.dynamic[k]||[]} onChange={v=>setFilters({...filters, dynamic:{...filters.dynamic,[k]:v}})} />)}
-            <button onClick={()=>window.open('/api/export','_blank')}>Export CSV</button>
-          </aside>
-          <main className='main'>
-            <h1>What is happening in the region</h1>
+        const values = rows.map(r=>Number(r[filters.metric])).filter(v=>!isNaN(v));
+        const total = values.reduce((a,b)=>a+b,0);
+        const avg = values.length?total/values.length:0;
+
+        return <>
+          <div className='topbar'>United Nations · Monitoring and Results Tool</div>
+          <div className='subbar'>
+            <div className='tag'>{meta.latest_upload ? `Last upload: ${new Date(meta.latest_upload).toLocaleString()} · ${rows.length} records shown` : 'No data uploaded yet'}</div>
+            <div className='upload-box'>
+              <input type='file' accept='.csv,.xlsx,.xls' onChange={e=>setFile(e.target.files[0])}/>
+              <select value={uploadMode} onChange={e=>setUploadMode(e.target.value)} style={{width:120}}><option value='replace'>Replace</option><option value='append'>Append</option></select>
+              <button className='btn' onClick={uploadFile} disabled={busy}>{busy?'Uploading...':'Upload CSV/Excel'}</button>
+            </div>
+          </div>
+          <div className='wrap'>
+            <div className='tabs'>
+              <button className={`tab ${activeTab==='focal'?'active':''}`} onClick={()=>setActiveTab('focal')}>By Focal Point</button>
+              <button className={`tab ${activeTab==='agency'?'active':''}`} onClick={()=>setActiveTab('agency')}>By Agency</button>
+              <button className={`tab ${activeTab==='project'?'active':''}`} onClick={()=>setActiveTab('project')}>By Project</button>
+            </div>
+            <div className='panel'>
+              <div className='filters'>
+                <div><label>Country</label><select value={filters.country} onChange={e=>setFilters({...filters,country:e.target.value})}><option value=''>All</option>{meta.countries.map(v=><option key={v}>{v}</option>)}</select></div>
+                <div><label>Plan</label><select value={filters.plan_name} onChange={e=>setFilters({...filters,plan_name:e.target.value})}><option value=''>All</option>{meta.plans.map(v=><option key={v}>{v}</option>)}</select></div>
+                <div><label>Year</label><select value={filters.year} onChange={e=>setFilters({...filters,year:e.target.value})}><option value=''>Every year</option>{meta.years.map(v=><option key={v} value={v}>{v}</option>)}</select></div>
+                <div><label>Status</label><select value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value})}><option value=''>All</option>{(statusField?meta.attribute_filters[statusField]:[]).map(v=><option key={v}>{v}</option>)}</select></div>
+                <div><label>Metric</label><select value={filters.metric} onChange={e=>setFilters({...filters,metric:e.target.value})}>{meta.metrics.map(v=><option key={v}>{v}</option>)}</select></div>
+                <div><button className='btn' onClick={()=>window.open('/api/export','_blank')}>Download CSV</button></div>
+              </div>
+            </div>
             <div className='kpis'>
-              <div className='card'><b>Records</b><div>{data.length}</div></div>
-              <div className='card'><b>Total ({filters.metric})</b><div>{total.toFixed(2)}</div></div>
-              <div className='card'><b>Average ({filters.metric})</b><div>{numeric.length ? (total/numeric.length).toFixed(2):'0.00'}</div></div>
+              <div className='kpi'><div>Projects</div><div className='num'>{rows.length}</div></div>
+              <div className='kpi'><div>Total {filters.metric||'metric'}</div><div className='num'>{total.toFixed(2)}</div></div>
+              <div className='kpi'><div>Average {filters.metric||'metric'}</div><div className='num'>{avg.toFixed(2)}</div></div>
             </div>
-            <div className='card table-wrap'>
-              <table><thead><tr>{Object.keys(data[0]||{}).map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{data.slice(0,300).map((r,i)=><tr key={i}>{Object.entries(r).map(([k,v])=><td key={k}>{String(v??'')}</td>)}</tr>)}</tbody></table>
+            <div className='table-card table-wrap'>
+              <table><thead><tr>{Object.keys(rows[0]||{}).map(k=><th key={k}>{k}</th>)}</tr></thead><tbody>{rows.slice(0,500).map((r,i)=><tr key={i}>{Object.values(r).map((v,j)=><td key={j}>{String(v??'')}</td>)}</tr>)}</tbody></table>
             </div>
-          </main>
-        </div>
+          </div>
+          <div className='footer'>Developed for UN monitoring workflows.</div>
+        </>;
       }
-      ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
     </script>
   </body>
 </html>
